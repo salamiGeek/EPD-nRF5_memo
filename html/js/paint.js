@@ -96,8 +96,10 @@ function updateToolUI() {
 
   // Show/hide brush tools
   document.querySelectorAll('.brush-tools').forEach(el => {
-    el.style.display = ['brush', 'text'].includes(currentTool) ? 'flex' : 'none';
+    el.style.display = ['brush', 'eraser', 'text'].includes(currentTool) ? 'flex' : 'none';
   });
+  document.getElementById('brush-color').disabled = currentTool === 'eraser';
+  document.getElementById('brush-size').disabled = currentTool === 'text';
 
   // Show/hide text tools
   document.querySelectorAll('.text-tools').forEach(el => {

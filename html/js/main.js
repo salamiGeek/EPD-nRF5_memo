@@ -176,7 +176,7 @@ async function sendimg() {
   status.parentElement.style.display = "block";
 
   const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  const processedData = processImageData(imageData);
+  const processedData = processImageData(imageData, ditherMode);
 
   updateButtonStatus(true);
 
@@ -207,9 +207,9 @@ async function sendimg() {
 }
 
 function downloadDataArray() {
-  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  const processedData = processImageData(imageData);
   const mode = document.getElementById('ditherMode').value;
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const processedData = processImageData(imageData, mode);
 
   if (mode === 'sixColor' && processedData.length !== canvas.width * canvas.height) {
     console.log(`错误：预期${canvas.width * canvas.height}字节，但得到${processedData.length}字节`);
@@ -440,12 +440,12 @@ function updateDitcherOptions() {
 }
 
 function updateImage(clear = false) {
-  const image_file = document.getElementById('image_file');
-  if (image_file.files.length == 0) return;
+  const imageFile = document.getElementById('imageFile');
+  if (imageFile.files.length == 0) return;
 
   if (clear) clearCanvas();
 
-  const file = image_file.files[0];
+  const file = imageFile.files[0];
   let image = new Image();;
   image.src = URL.createObjectURL(file);
   image.onload = function (event) {
@@ -472,7 +472,7 @@ function clearCanvas() {
 }
 
 function convertDithering() {
-  const contrast = parseFloat(document.getElementById('contrast').value);
+  const contrast = parseFloat(document.getElementById('ditherContrast').value);
   const currentImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
   const imageData = new ImageData(
     new Uint8ClampedArray(currentImageData.data),
@@ -482,10 +482,28 @@ function convertDithering() {
 
   adjustContrast(imageData, contrast);
 
+  const alg = document.getElementById('ditherAlg').value;
+  const strength = parseFloat(document.getElementById('ditherStrength').value);
   const mode = document.getElementById('ditherMode').value;
-  const processedData = processImageData(ditherImage(imageData));
+  const processedData = processImageData(ditherImage(imageData, alg, strength, mode), mode);
   const finalImageData = decodeProcessedData(processedData, canvas.width, canvas.height, mode);
   ctx.putImageData(finalImageData, 0, 0);
+}
+
+function initEventHandlers() {
+  document.getElementById("epddriver").addEventListener("change", updateDitcherOptions);
+  document.getElementById("imageFile").addEventListener("change", function () { updateImage(true); });
+  document.getElementById("ditherMode").addEventListener("change", function () { updateImage(false); });
+  document.getElementById("ditherAlg").addEventListener("change", function () { updateImage(false); });
+  document.getElementById("ditherStrength").addEventListener("input", function () {
+    updateImage(false);
+    document.getElementById("ditherStrengthValue").innerText = parseFloat(this.value).toFixed(1);
+  });
+  document.getElementById("ditherContrast").addEventListener("input", function () {
+    updateImage(false);
+    document.getElementById("ditherContrastValue").innerText = parseFloat(this.value).toFixed(1);
+  });
+  document.getElementById("canvasSize").addEventListener("change", updateCanvasSize);
 }
 
 function checkDebugMode() {
@@ -514,6 +532,7 @@ document.body.onload = () => {
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   initPaintTools();
+  initEventHandlers();
   updateButtonStatus();
   checkDebugMode();
 }

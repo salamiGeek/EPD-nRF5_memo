@@ -74,8 +74,7 @@ function labDistance(lab1, lab2) {
   return Math.sqrt(0.2 * dl * dl + 3 * da * da + 3 * db * db);
 }
 
-function findClosestColor(r, g, b) {
-  const mode = document.getElementById('ditherMode').value;
+function findClosestColor(r, g, b, mode) {
   let palette;
 
   if (mode === 'fourColor') {
@@ -118,7 +117,7 @@ function findClosestColor(r, g, b) {
   return closestColor;
 }
 
-function floydSteinbergDither(imageData, strength) {
+function floydSteinbergDither(imageData, strength, mode) {
   const width = imageData.width;
   const height = imageData.height;
   const data = imageData.data;
@@ -131,7 +130,7 @@ function floydSteinbergDither(imageData, strength) {
       const g = tempData[idx + 1];
       const b = tempData[idx + 2];
 
-      const closest = findClosestColor(r, g, b);
+      const closest = findClosestColor(r, g, b, mode);
 
       const errR = (r - closest.r) * strength;
       const errG = (g - closest.g) * strength;
@@ -171,7 +170,7 @@ function floydSteinbergDither(imageData, strength) {
       const g = tempData[idx + 1];
       const b = tempData[idx + 2];
 
-      const closest = findClosestColor(r, g, b);
+      const closest = findClosestColor(r, g, b, mode);
       data[idx] = closest.r;
       data[idx + 1] = closest.g;
       data[idx + 2] = closest.b;
@@ -181,7 +180,7 @@ function floydSteinbergDither(imageData, strength) {
   return imageData;
 }
 
-function atkinsonDither(imageData, strength) {
+function atkinsonDither(imageData, strength, mode) {
   const width = imageData.width;
   const height = imageData.height;
   const data = imageData.data;
@@ -194,7 +193,7 @@ function atkinsonDither(imageData, strength) {
       const g = tempData[idx + 1];
       const b = tempData[idx + 2];
 
-      const closest = findClosestColor(r, g, b);
+      const closest = findClosestColor(r, g, b, mode);
 
       data[idx] = closest.r;
       data[idx + 1] = closest.g;
@@ -248,7 +247,7 @@ function atkinsonDither(imageData, strength) {
   return imageData;
 }
 
-function stuckiDither(imageData, strength) {
+function stuckiDither(imageData, strength, mode) {
   // 执行Stucki错误扩散算法以处理图像
   const width = imageData.width;
   const height = imageData.height;
@@ -262,7 +261,7 @@ function stuckiDither(imageData, strength) {
       const g = tempData[idx + 1];
       const b = tempData[idx + 2];
 
-      const closest = findClosestColor(r, g, b);
+      const closest = findClosestColor(r, g, b, mode);
 
       const errR = (r - closest.r) * strength;
       const errG = (g - closest.g) * strength;
@@ -352,7 +351,7 @@ function stuckiDither(imageData, strength) {
       const g = tempData[idx + 1];
       const b = tempData[idx + 2];
 
-      const closest = findClosestColor(r, g, b);
+      const closest = findClosestColor(r, g, b, mode);
       data[idx] = closest.r;
       data[idx + 1] = closest.g;
       data[idx + 2] = closest.b;
@@ -362,7 +361,7 @@ function stuckiDither(imageData, strength) {
   return imageData;
 }
 
-function jarvisDither(imageData, strength) {
+function jarvisDither(imageData, strength, mode) {
   const width = imageData.width;
   const height = imageData.height;
   const data = imageData.data;
@@ -375,7 +374,7 @@ function jarvisDither(imageData, strength) {
       const g = tempData[idx + 1];
       const b = tempData[idx + 2];
 
-      const closest = findClosestColor(r, g, b);
+      const closest = findClosestColor(r, g, b, mode);
 
       data[idx] = closest.r;
       data[idx + 1] = closest.g;
@@ -465,7 +464,7 @@ function jarvisDither(imageData, strength) {
   return imageData;
 }
 
-function bayerDither(imageData, strength) {
+function bayerDither(imageData, strength, mode) {
   const width = imageData.width;
   const height = imageData.height;
   const data = imageData.data;
@@ -508,7 +507,7 @@ function bayerDither(imageData, strength) {
       const clampedB = Math.min(255, Math.max(0, adjustedB));
 
       // Find closest color in palette
-      const closest = findClosestColor(clampedR, clampedG, clampedB);
+      const closest = findClosestColor(clampedR, clampedG, clampedB, mode);
       
       data[idx] = closest.r;
       data[idx + 1] = closest.g;
@@ -519,21 +518,18 @@ function bayerDither(imageData, strength) {
   return imageData;
 }
 
-function ditherImage(imageData) {
-  const ditherType = document.getElementById('ditherType').value;
-  const ditherStrength = parseFloat(document.getElementById('ditherStrength').value);
-
-  switch (ditherType) {
+function ditherImage(imageData, alg, strength, mode) {
+  switch (alg) {
     case 'floydSteinberg':
-      return floydSteinbergDither(imageData, ditherStrength);
+      return floydSteinbergDither(imageData, strength, mode);
     case 'atkinson':
-      return atkinsonDither(imageData, ditherStrength);
+      return atkinsonDither(imageData, strength, mode);
     case 'stucki':
-      return stuckiDither(imageData, ditherStrength);
+      return stuckiDither(imageData, strength, mode);
     case 'jarvis':
-      return jarvisDither(imageData, ditherStrength);
+      return jarvisDither(imageData, strength, mode);
     case 'bayer':
-      return bayerDither(imageData, ditherStrength);
+      return bayerDither(imageData, strength, mode);
     default:
       return imageData;
   }
@@ -620,11 +616,10 @@ function decodeProcessedData(processedData, width, height, mode) {
   return imageData;
 }
 
-function processImageData(imageData) {
+function processImageData(imageData, mode) {
   const width = imageData.width;
   const height = imageData.height;
   const data = imageData.data;
-  const mode = document.getElementById('ditherMode').value;
 
   let processedData;
 
@@ -637,7 +632,7 @@ function processImageData(imageData) {
         const g = data[index + 1];
         const b = data[index + 2];
 
-        const closest = findClosestColor(r, g, b);
+        const closest = findClosestColor(r, g, b, mode);
         const newIndex = (x * height) + (height - 1 - y);
         processedData[newIndex] = closest.value;
       }
@@ -650,7 +645,7 @@ function processImageData(imageData) {
         const r = data[index];
         const g = data[index + 1];
         const b = data[index + 2];
-        const closest = findClosestColor(r, g, b); // 使用 fourColorPalette
+        const closest = findClosestColor(r, g, b, mode); // 使用 fourColorPalette
         const colorValue = closest.value; // 0x00 (黑), 0x01 (白), 0x02 (红), 0x03 (黄)
         const newIndex = (y * width + x) / 4 | 0;
         const shift = 6 - ((x % 4) * 2);
