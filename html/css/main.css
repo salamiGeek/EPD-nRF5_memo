@@ -432,6 +432,33 @@ body.debug-mode select:disabled {
     border-color: #2a2a2a;
 }
 
+.warning {
+  color: #ff0000 !important;
+  font-weight: bold;
+}
+
+#memoText {
+  font-family: Arial, 'Microsoft YaHei', sans-serif;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  resize: vertical;
+  min-height: 100px;
+}
+
+#memoText:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.memo-toolbar {
+  margin-top: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
 @media (max-width: 768px) {
     .flex-container {
         flex-direction: column;

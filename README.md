@@ -47,7 +47,7 @@
 - 演示：https://www.bilibili.com/video/BV1KWAVe1EKs
 - 交流群: [1033086563](https://qm.qq.com/q/SckzhfDxuu) (点击链接加入群聊)
 
-![](docs/images/0.jpg)
+![](docs/images/screenshot-20250731-202243.png)
 
 上位机支持多种图片抖动算法，且可以对图片进行涂鸦、添加文字。除了显示图片作为电子相框外，还可以切换到日历模式，显示月历、农历节气、节假日、放假调休等信息。
 
