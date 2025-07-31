@@ -77,16 +77,29 @@
                         <option value="todo">待办事项</option>
                         <option value="notes">会议笔记</option>
                         <option value="shopping">购物清单</option>
+                        <option value="xiaohongshu">小红书风格</option>
+                    </select>
+                </div>
+                <div class="flex-group" style="width: 100%;">
+                    <label for="memoTheme">主题风格:</label>
+                    <select id="memoTheme" onchange="previewMemo()">
+                        <option value="simple">简约风格</option>
+                        <option value="xiaohongshu" selected>小红书风格</option>
+                        <option value="elegant">优雅边框</option>
+                        <option value="highlight">重点标记</option>
                     </select>
                 </div>
                 <div class="flex-group" style="width: 100%;">
                     <button type="button" class="tool-button" onclick="applyMemoFormat('bold')" title="粗体">B</button>
                     <button type="button" class="tool-button" onclick="applyMemoFormat('italic')" title="斜体">I</button>
                     <button type="button" class="tool-button" onclick="applyMemoFormat('underline')" title="下划线">U</button>
+                    <button type="button" class="tool-button" onclick="applyMemoFormat('red')" title="红色文字" style="color: red;">R</button>
                     <button type="button" class="tool-button" onclick="applyMemoFormat('bullet')" title="项目符号">•</button>
                     <button type="button" class="tool-button" onclick="applyMemoFormat('number')" title="编号列表">1.</button>
                     <button type="button" class="tool-button" onclick="applyMemoFormat('checkbox')" title="复选框">☐</button>
+                    <button type="button" class="tool-button" onclick="applyMemoFormat('redcheckbox')" title="红色复选框" style="color: red;">☐</button>
                     <button type="button" class="tool-button" onclick="applyMemoFormat('today')" title="插入日期">📅</button>
+                    <button type="button" class="tool-button" onclick="applyMemoFormat('line')" title="分隔线">―</button>
                 </div>
                 <div class="flex-group" style="width: 100%;">
                     <label for="memoTitle">标题:</label>

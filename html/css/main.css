@@ -459,6 +459,106 @@ body.debug-mode select:disabled {
   align-items: center;
 }
 
+/* 小红书风格样式 */
+.tool-button {
+  margin-right: 5px;
+  padding: 5px 8px;
+  font-weight: bold;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  background-color: white;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tool-button:hover {
+  background-color: #f0f0f0;
+}
+
+#memo-preview {
+  margin-top: 15px;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  padding: 10px;
+  transition: all 0.3s ease;
+}
+
+#memo-preview-content {
+  overflow: auto;
+  max-height: 300px;
+}
+
+/* 小红书风格主题 */
+.xiaohongshu-theme {
+  border: 2px solid #ff2442;
+  border-radius: 10px;
+  padding: 15px;
+  background-color: white;
+}
+
+.xiaohongshu-title {
+  color: #ff2442;
+  text-align: center;
+  font-weight: bold;
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #ff2442;
+}
+
+.xiaohongshu-bullet {
+  color: #ff2442;
+  font-weight: bold;
+}
+
+.xiaohongshu-hr {
+  border: 0;
+  height: 2px;
+  background-color: #ff2442;
+  margin: 15px 0;
+}
+
+.xiaohongshu-tag {
+  display: inline-block;
+  background-color: #ffebee;
+  color: #ff2442;
+  padding: 3px 8px;
+  border-radius: 4px;
+  margin-right: 5px;
+  font-size: 0.9em;
+}
+
+.xiaohongshu-checkbox {
+  accent-color: #ff2442;
+}
+
+/* 优雅主题 */
+.elegant-theme {
+  border: 1px solid #000;
+  border-radius: 5px;
+  padding: 15px;
+  background-color: white;
+}
+
+.elegant-title {
+  border-bottom: 1px solid #000;
+  padding-bottom: 10px;
+  margin-bottom: 15px;
+}
+
+/* 强调主题 */
+.highlight-theme {
+  border-left: 5px solid #ff2442;
+  padding: 15px;
+  background-color: white;
+}
+
+.highlight-title {
+  background-color: #000;
+  color: white;
+  padding: 5px 10px;
+  margin: -15px -15px 15px -15px;
+}
+
 @media (max-width: 768px) {
     .flex-container {
         flex-direction: column;
