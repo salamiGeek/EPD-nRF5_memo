@@ -13,6 +13,7 @@ const EpdCmd = {
   SLEEP:     0x06,
 
   SET_TIME:  0x20,
+  // 移除了SET_MEMO命令，改为使用画布渲染
 
   WRITE_IMG: 0x30, // v1.6
 
@@ -158,52 +159,392 @@ async function sendcmd() {
   await write(bytes[0], bytes.length > 1 ? bytes.slice(1) : null);
 }
 
-async function sendimg() {
-  const canvasSize = document.getElementById('canvasSize').value;
-  const ditherMode = document.getElementById('ditherMode').value;
-  const epdDriverSelect = document.getElementById('epddriver');
-  const selectedOption = epdDriverSelect.options[epdDriverSelect.selectedIndex];
-
-  if (selectedOption.getAttribute('data-size') !== canvasSize) {
-    if (!confirm("警告：画布尺寸和驱动不匹配，是否继续？")) return;
-  }
-  if (selectedOption.getAttribute('data-color') !== ditherMode) {
-    if (!confirm("警告：颜色模式和驱动不匹配，是否继续？")) return;
-  }
-
-  startTime = new Date().getTime();
-  const status = document.getElementById("status");
-  status.parentElement.style.display = "block";
-
-  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  const processedData = processImageData(imageData, ditherMode);
-
-  updateButtonStatus(true);
-
-  if (ditherMode === 'fourColor') {
-    await writeImage(processedData, 'color');
-  } else if (ditherMode === 'threeColor') {
-    const halfLength = Math.floor(processedData.length / 2);
-    await writeImage(processedData.slice(0, halfLength), 'bw');
-    await writeImage(processedData.slice(halfLength), 'red');
-  } else if (ditherMode === 'blackWhiteColor') {
-    await writeImage(processedData, 'bw');
-  } else {
-    addLog("当前固件不支持此颜色模式。");
-    updateButtonStatus();
+// 替换为渲染文本到画布并发送图像的功能
+async function sendMemo() {
+  const memoText = document.getElementById('memoText').value.trim();
+  if (!memoText) {
+    addLog("备忘录内容不能为空");
     return;
   }
+  
+  // 保存到本地存储
+  const fontSize = parseInt(document.getElementById('memoFontSize').value);
+  const memoTitle = document.getElementById('memoTitle').value;
+  const titlePosition = document.getElementById('titlePosition').value;
+  const memoFont = document.getElementById('memoFont').value;
+  
+  localStorage.setItem('memoText', memoText);
+  localStorage.setItem('memoFontSize', fontSize.toString());
+  localStorage.setItem('memoTitle', memoTitle);
+  localStorage.setItem('titlePosition', titlePosition);
+  localStorage.setItem('memoFont', memoFont);
+  
+  // 渲染文本到画布
+  renderMemoToCanvas(memoText, fontSize);
+  
+  // 使用现有的发送图像功能
+  await sendimg(true);
+}
 
-  await write(EpdCmd.REFRESH);
-  updateButtonStatus();
+// 应用文本格式化
+function applyMemoFormat(format) {
+  const textarea = document.getElementById('memoText');
+  const start = textarea.selectionStart;
+  const end = textarea.selectionEnd;
+  const selectedText = textarea.value.substring(start, end);
+  let replacement = '';
+  
+  switch (format) {
+    case 'bold':
+      replacement = `**${selectedText}**`;
+      break;
+    case 'italic':
+      replacement = `*${selectedText}*`;
+      break;
+    case 'underline':
+      replacement = `_${selectedText}_`;
+      break;
+    case 'bullet':
+      // 如果有多行选择，为每行添加项目符号
+      if (selectedText.includes('\n')) {
+        replacement = selectedText.split('\n').map(line => `• ${line}`).join('\n');
+      } else {
+        replacement = `• ${selectedText}`;
+      }
+      break;
+    case 'number':
+      // 如果有多行选择，为每行添加编号
+      if (selectedText.includes('\n')) {
+        replacement = selectedText.split('\n').map((line, i) => `${i+1}. ${line}`).join('\n');
+      } else {
+        replacement = `1. ${selectedText}`;
+      }
+      break;
+    case 'checkbox':
+      // 如果有多行选择，为每行添加复选框
+      if (selectedText.includes('\n')) {
+        replacement = selectedText.split('\n').map(line => `[ ] ${line}`).join('\n');
+      } else {
+        replacement = `[ ] ${selectedText}`;
+      }
+      break;
+    case 'today':
+      const today = new Date();
+      const formattedDate = today.toLocaleDateString();
+      replacement = formattedDate;
+      break;
+  }
+  
+  // 替换文本
+  textarea.value = 
+    textarea.value.substring(0, start) + 
+    replacement + 
+    textarea.value.substring(end);
+  
+  // 调整光标位置到插入内容之后
+  textarea.selectionStart = start + replacement.length;
+  textarea.selectionEnd = start + replacement.length;
+  
+  // 使文本框重新获得焦点
+  textarea.focus();
+  
+  // 更新字符计数
+  updateCharCount();
+}
 
-  const sendTime = (new Date().getTime() - startTime) / 1000.0;
-  addLog(`发送完成！耗时: ${sendTime}s`);
-  setStatus(`发送完成！耗时: ${sendTime}s`);
-  addLog("屏幕刷新完成前请不要操作。");
-  setTimeout(() => {
-    status.parentElement.style.display = "none";
-  }, 5000);
+// 预览备忘录内容
+function previewMemo() {
+  const memoText = document.getElementById('memoText').value;
+  const previewDiv = document.getElementById('memo-preview');
+  const previewContent = document.getElementById('memo-preview-content');
+  
+  if (!memoText) {
+    alert('请先输入备忘录内容');
+    return;
+  }
+  
+  // 处理简单的Markdown标记
+  let htmlContent = memoText
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') // 粗体
+    .replace(/\*(.*?)\*/g, '<em>$1</em>') // 斜体
+    .replace(/_(.*?)_/g, '<u>$1</u>') // 下划线
+    .replace(/\[ \] (.*?)(?:\n|$)/g, '<div><input type="checkbox" disabled> $1</div>') // 未选中复选框
+    .replace(/\[x\] (.*?)(?:\n|$)/g, '<div><input type="checkbox" checked disabled> $1</div>') // 已选中复选框
+    .replace(/^• (.*?)(?:\n|$)/gm, '<li>$1</li>') // 项目符号
+    .replace(/^(\d+)\. (.*?)(?:\n|$)/gm, '<li>$1. $2</li>') // 编号列表
+    .replace(/\n/g, '<br>'); // 换行符
+  
+  // 添加适当的列表标签
+  htmlContent = htmlContent.replace(/<li>.*?<\/li>/g, match => {
+    if (match.includes('•')) {
+      return `<ul>${match}</ul>`;
+    } else if (/\d+\./.test(match)) {
+      return `<ol>${match}</ol>`;
+    }
+    return match;
+  });
+  
+  previewContent.innerHTML = htmlContent;
+  previewDiv.style.display = 'block';
+}
+
+// 渲染备忘录文本到画布
+function renderMemoToCanvas(text, fontSize) {
+  // 确保我们使用主画布
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  
+  // 清空画布
+  ctx.fillStyle = 'white';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  
+  // 设置文本样式
+  ctx.fillStyle = 'black';
+  const fontFamily = document.getElementById('memoFont').value;
+  ctx.font = `${fontSize}px ${fontFamily}`;
+  ctx.textBaseline = 'top';
+  
+  // 设置行高和边距
+  const lineHeight = fontSize * 1.2;
+  const margin = 20;
+  
+  let y = margin;
+  
+  // 处理标题
+  const title = document.getElementById('memoTitle').value;
+  if (title) {
+    const titlePosition = document.getElementById('titlePosition').value;
+    const titleFontSize = fontSize * 1.5;
+    ctx.font = `bold ${titleFontSize}px ${fontFamily}`;
+    
+    const titleWidth = ctx.measureText(title).width;
+    let titleX = margin;
+    
+    switch (titlePosition) {
+      case 'top':
+        titleX = (canvas.width - titleWidth) / 2;
+        break;
+      case 'top-right':
+        titleX = canvas.width - margin - titleWidth;
+        break;
+      case 'top-left':
+      default:
+        titleX = margin;
+    }
+    
+    ctx.fillText(title, titleX, y);
+    
+    // 在标题下方画一条线
+    ctx.beginPath();
+    ctx.moveTo(margin, y + titleFontSize + 5);
+    ctx.lineTo(canvas.width - margin, y + titleFontSize + 5);
+    ctx.stroke();
+    
+    y += titleFontSize + 15; // 标题后多加一些间距
+  }
+  
+  // 恢复正常字体大小
+  ctx.font = `${fontSize}px ${fontFamily}`;
+  
+  // 处理简单的Markdown格式
+  const lines = text.split('\n');
+  
+  // 为不同格式设置不同字体样式
+  const normalFont = `${fontSize}px ${fontFamily}`;
+  const boldFont = `bold ${fontSize}px ${fontFamily}`;
+  const italicFont = `italic ${fontSize}px ${fontFamily}`;
+  const boldItalicFont = `bold italic ${fontSize}px ${fontFamily}`;
+  
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i];
+    let x = margin;
+    
+    // 检查特殊格式
+    if (line.startsWith('• ')) {
+      // 绘制项目符号
+      ctx.font = normalFont;
+      ctx.fillText('•', x, y);
+      x += fontSize; // 缩进
+      line = line.substring(2);
+    } else if (/^\d+\./.test(line)) {
+      // 绘制数字列表
+      const match = line.match(/^(\d+)\./);
+      if (match) {
+        ctx.font = normalFont;
+        ctx.fillText(match[0], x, y);
+        x += ctx.measureText(match[0]).width + 5;
+        line = line.substring(match[0].length + 1);
+      }
+    } else if (line.startsWith('[ ] ') || line.startsWith('[x] ')) {
+      // 绘制复选框
+      ctx.strokeStyle = 'black';
+      ctx.lineWidth = 1;
+      const boxSize = fontSize * 0.8;
+      ctx.strokeRect(x, y + (lineHeight - boxSize) / 2, boxSize, boxSize);
+      
+      if (line.startsWith('[x] ')) {
+        // 绘制选中标记
+        ctx.beginPath();
+        ctx.moveTo(x + boxSize * 0.2, y + lineHeight / 2);
+        ctx.lineTo(x + boxSize * 0.4, y + lineHeight / 2 + boxSize * 0.2);
+        ctx.lineTo(x + boxSize * 0.8, y + lineHeight / 2 - boxSize * 0.3);
+        ctx.stroke();
+      }
+      
+      x += boxSize + 5;
+      line = line.substring(4); // 跳过 "[ ] " 或 "[x] "
+    }
+    
+    // 处理行内格式
+    let segments = [];
+    let currentIndex = 0;
+    
+    // 查找粗体、斜体等标记
+    const regex = /(\*\*.*?\*\*)|(\*.*?\*)|(_.*?_)/g;
+    let match;
+    
+    while ((match = regex.exec(line)) !== null) {
+      // 添加前面的普通文本
+      if (match.index > currentIndex) {
+        segments.push({
+          text: line.substring(currentIndex, match.index),
+          format: 'normal'
+        });
+      }
+      
+      // 添加格式化文本
+      if (match[1]) { // 粗体 **text**
+        segments.push({
+          text: match[1].substring(2, match[1].length - 2),
+          format: 'bold'
+        });
+      } else if (match[2]) { // 斜体 *text*
+        segments.push({
+          text: match[2].substring(1, match[2].length - 1),
+          format: 'italic'
+        });
+      } else if (match[3]) { // 下划线 _text_
+        segments.push({
+          text: match[3].substring(1, match[3].length - 1),
+          format: 'underline'
+        });
+      }
+      
+      currentIndex = match.index + match[0].length;
+    }
+    
+    // 添加剩余的文本
+    if (currentIndex < line.length) {
+      segments.push({
+        text: line.substring(currentIndex),
+        format: 'normal'
+      });
+    }
+    
+    // 如果没有匹配到任何格式，就添加整行作为普通文本
+    if (segments.length === 0) {
+      segments.push({
+        text: line,
+        format: 'normal'
+      });
+    }
+    
+    // 绘制每个文本片段
+    for (const segment of segments) {
+      switch (segment.format) {
+        case 'bold':
+          ctx.font = boldFont;
+          break;
+        case 'italic':
+          ctx.font = italicFont;
+          break;
+        case 'underline':
+          ctx.font = normalFont;
+          break;
+        default:
+          ctx.font = normalFont;
+      }
+      
+      // 测量文本宽度
+      const textWidth = ctx.measureText(segment.text).width;
+      
+      // 如果这一段文本会超出右边界，就换行
+      if (x + textWidth > canvas.width - margin) {
+        y += lineHeight;
+        x = margin;
+      }
+      
+      // 绘制文本
+      ctx.fillText(segment.text, x, y);
+      
+      // 绘制下划线
+      if (segment.format === 'underline') {
+        const metrics = ctx.measureText(segment.text);
+        const underlineY = y + fontSize - fontSize / 8;
+        ctx.beginPath();
+        ctx.moveTo(x, underlineY);
+        ctx.lineTo(x + metrics.width, underlineY);
+        ctx.stroke();
+      }
+      
+      x += ctx.measureText(segment.text).width;
+    }
+    
+    // 下一行
+    y += lineHeight;
+    
+    // 如果已经到达画布底部，停止渲染
+    if (y > canvas.height - margin && i < lines.length - 1) {
+      addLog("警告：文本太长，部分内容可能无法显示");
+      return;
+    }
+  }
+  
+  addLog("备忘录已渲染到画布！");
+}
+
+// 加载保存的备忘录内容
+function loadSavedMemo() {
+  const savedText = localStorage.getItem('memoText');
+  const savedFontSize = localStorage.getItem('memoFontSize');
+  const savedTitle = localStorage.getItem('memoTitle');
+  const savedTitlePosition = localStorage.getItem('titlePosition');
+  const savedFont = localStorage.getItem('memoFont');
+  
+  if (savedText) {
+    document.getElementById('memoText').value = savedText;
+    updateCharCount();
+  }
+  
+  if (savedFontSize) {
+    document.getElementById('memoFontSize').value = savedFontSize;
+  }
+  
+  if (savedTitle) {
+    document.getElementById('memoTitle').value = savedTitle;
+  }
+  
+  if (savedTitlePosition) {
+    document.getElementById('titlePosition').value = savedTitlePosition;
+  }
+  
+  if (savedFont) {
+    document.getElementById('memoFont').value = savedFont;
+  }
+}
+
+// 更新字符计数
+function updateCharCount() {
+  const memoText = document.getElementById('memoText').value;
+  const charCount = memoText.length;
+  document.getElementById('charCount').textContent = `${charCount}/1024`;
+  
+  // 如果超过1024个字符，显示警告
+  if (charCount > 1024) {
+    document.getElementById('charCount').classList.add('warning');
+  } else {
+    document.getElementById('charCount').classList.remove('warning');
+  }
 }
 
 function downloadDataArray() {
@@ -256,6 +597,7 @@ function updateButtonStatus(forceDisabled = false) {
   document.getElementById("clearscreenbutton").disabled = status;
   document.getElementById("sendimgbutton").disabled = status;
   document.getElementById("setDriverbutton").disabled = status;
+  document.getElementById("sendMemoButton").disabled = status; // 新增备忘录按钮状态
 }
 
 function disconnect() {
@@ -523,6 +865,100 @@ function checkDebugMode() {
   }
 }
 
+// 应用备忘录模板
+function applyTemplate() {
+  const template = document.getElementById('memoTemplate').value;
+  const memoText = document.getElementById('memoText');
+  const memoTitle = document.getElementById('memoTitle');
+  
+  if (!template) return;
+  
+  if ((memoText.value || memoTitle.value) && !confirm('将覆盖当前内容，是否继续？')) {
+    document.getElementById('memoTemplate').value = '';
+    return;
+  }
+  
+  const today = new Date().toLocaleDateString();
+  
+  switch (template) {
+    case 'todo':
+      memoTitle.value = "今日待办";
+      memoText.value = "[ ] 1. \n[ ] 2. \n[ ] 3. \n[ ] 4. \n[ ] 5. \n\n日期：" + today;
+      break;
+    case 'notes':
+      memoTitle.value = "会议笔记";
+      memoText.value = "日期：" + today + "\n\n主题：\n\n要点：\n• \n• \n• \n\n后续行动：\n• ";
+      break;
+    case 'shopping':
+      memoTitle.value = "购物清单";
+      memoText.value = "[ ] 1. \n[ ] 2. \n[ ] 3. \n[ ] 4. \n[ ] 5. \n\n备注：";
+      break;
+  }
+  
+  // 重置选择
+  document.getElementById('memoTemplate').value = '';
+  updateCharCount();
+}
+
+// 清空备忘录内容
+function clearMemo() {
+  if (confirm('确定要清空备忘录内容吗？')) {
+    document.getElementById('memoText').value = '';
+    updateCharCount();
+  }
+}
+
+// 修改sendimg函数支持不显示确认对话框的选项
+async function sendimg(skipConfirmation = false) {
+  const canvasSize = document.getElementById('canvasSize').value;
+  const ditherMode = document.getElementById('ditherMode').value;
+  const epdDriverSelect = document.getElementById('epddriver');
+  const selectedOption = epdDriverSelect.options[epdDriverSelect.selectedIndex];
+
+  if (!skipConfirmation) {
+    if (selectedOption.getAttribute('data-size') !== canvasSize) {
+      if (!confirm("警告：画布尺寸和驱动不匹配，是否继续？")) return;
+    }
+    if (selectedOption.getAttribute('data-color') !== ditherMode) {
+      if (!confirm("警告：颜色模式和驱动不匹配，是否继续？")) return;
+    }
+  }
+
+  startTime = new Date().getTime();
+  const status = document.getElementById("status");
+  status.parentElement.style.display = "block";
+
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const processedData = processImageData(imageData, ditherMode);
+
+  updateButtonStatus(true);
+
+  if (ditherMode === 'fourColor') {
+    await writeImage(processedData, 'color');
+  } else if (ditherMode === 'threeColor') {
+    const halfLength = Math.floor(processedData.length / 2);
+    await writeImage(processedData.slice(0, halfLength), 'bw');
+    await writeImage(processedData.slice(halfLength), 'red');
+  } else if (ditherMode === 'blackWhiteColor') {
+    await writeImage(processedData, 'bw');
+  } else {
+    addLog("当前固件不支持此颜色模式。");
+    updateButtonStatus();
+    return;
+  }
+
+  await write(EpdCmd.REFRESH);
+  updateButtonStatus();
+
+  const sendTime = (new Date().getTime() - startTime) / 1000.0;
+  addLog(`发送完成！耗时: ${sendTime}s`);
+  setStatus(`发送完成！耗时: ${sendTime}s`);
+  addLog("屏幕刷新完成前请不要操作。");
+  setTimeout(() => {
+    status.parentElement.style.display = "none";
+  }, 5000);
+}
+
 document.body.onload = () => {
   textDecoder = null;
   canvas = document.getElementById('canvas');
@@ -535,4 +971,8 @@ document.body.onload = () => {
   initEventHandlers();
   updateButtonStatus();
   checkDebugMode();
+  loadSavedMemo(); // 加载保存的备忘录内容
+  
+  // 添加备忘录文本框的事件监听器
+  document.getElementById('memoText').addEventListener('input', updateCharCount);
 }
