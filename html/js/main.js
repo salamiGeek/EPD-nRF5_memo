@@ -266,7 +266,7 @@ function applyMemoFormat(format) {
   updateCharCount();
 }
 
-// 预览备忘录内容
+// 预览备忘录内容并同时渲染到画布
 function previewMemo() {
   const memoText = document.getElementById('memoText').value;
   const memoTitle = document.getElementById('memoTitle').value;
@@ -356,27 +356,44 @@ function previewMemo() {
   
   previewContent.innerHTML = finalHtml;
   previewDiv.style.display = 'block';
+  
+  // 同时渲染到画布
+  const fontSize = parseInt(document.getElementById('memoFontSize').value);
+  renderMemoToCanvas(memoText, fontSize);
+  addLog("备忘录已预览并渲染到画布！");
 }
 
-// 渲染备忘录文本到画布
+// 渲染备忘录文本到画布，增强分辨率自适应
 function renderMemoToCanvas(text, fontSize) {
   // 确保我们使用主画布
   const canvas = document.getElementById('canvas');
   const ctx = canvas.getContext('2d');
   
+  // 获取当前画布尺寸
+  const canvasWidth = canvas.width;
+  const canvasHeight = canvas.height;
+  
+  // 根据画布尺寸自适应调整字体大小和边距
+  // 计算字体大小比例因子(以400x300为基准)
+  const fontSizeFactor = Math.min(canvasWidth / 400, canvasHeight / 300);
+  const adjustedFontSize = Math.max(12, Math.round(fontSize * fontSizeFactor));
+  
+  // 计算自适应边距
+  const marginFactor = Math.min(canvasWidth / 400, canvasHeight / 300);
+  const margin = Math.max(10, Math.round(20 * marginFactor));
+  
   // 清空画布
   ctx.fillStyle = 'white';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillRect(0, 0, canvasWidth, canvasHeight);
   
   // 设置文本样式
   ctx.fillStyle = 'black';
   const fontFamily = document.getElementById('memoFont').value;
-  ctx.font = `${fontSize}px ${fontFamily}`;
+  ctx.font = `${adjustedFontSize}px ${fontFamily}`;
   ctx.textBaseline = 'top';
   
-  // 设置行高和边距
-  const lineHeight = fontSize * 1.2;
-  const margin = 20;
+  // 设置行高
+  const lineHeight = adjustedFontSize * 1.2;
   
   // 获取主题
   const theme = document.getElementById('memoTheme').value;
@@ -385,30 +402,30 @@ function renderMemoToCanvas(text, fontSize) {
   if (theme === 'xiaohongshu') {
     // 绘制边框
     ctx.strokeStyle = 'red';
-    ctx.lineWidth = 3;
-    ctx.strokeRect(margin/2, margin/2, canvas.width - margin, canvas.height - margin);
+    ctx.lineWidth = Math.max(2, Math.round(3 * marginFactor));
+    ctx.strokeRect(margin/2, margin/2, canvasWidth - margin, canvasHeight - margin);
     
     // 在底部添加小红书标志
-    ctx.font = `${fontSize * 0.8}px ${fontFamily}`;
+    ctx.font = `${adjustedFontSize * 0.8}px ${fontFamily}`;
     ctx.fillStyle = 'red';
     ctx.textAlign = 'center';
-    ctx.fillText('✨ 记录生活 ✨', canvas.width / 2, canvas.height - margin - fontSize);
+    ctx.fillText('✨ 记录生活 ✨', canvasWidth / 2, canvasHeight - margin - adjustedFontSize);
     ctx.textAlign = 'start';
     
     // 在四角添加装饰点
-    const cornerSize = 8;
+    const cornerSize = Math.max(4, Math.round(8 * marginFactor));
     ctx.fillRect(margin/2 - cornerSize/2, margin/2 - cornerSize/2, cornerSize, cornerSize);
-    ctx.fillRect(canvas.width - margin/2 - cornerSize/2, margin/2 - cornerSize/2, cornerSize, cornerSize);
-    ctx.fillRect(margin/2 - cornerSize/2, canvas.height - margin/2 - cornerSize/2, cornerSize, cornerSize);
-    ctx.fillRect(canvas.width - margin/2 - cornerSize/2, canvas.height - margin/2 - cornerSize/2, cornerSize, cornerSize);
+    ctx.fillRect(canvasWidth - margin/2 - cornerSize/2, margin/2 - cornerSize/2, cornerSize, cornerSize);
+    ctx.fillRect(margin/2 - cornerSize/2, canvasHeight - margin/2 - cornerSize/2, cornerSize, cornerSize);
+    ctx.fillRect(canvasWidth - margin/2 - cornerSize/2, canvasHeight - margin/2 - cornerSize/2, cornerSize, cornerSize);
   } else if (theme === 'elegant') {
     // 绘制精致边框
     ctx.strokeStyle = 'black';
     ctx.lineWidth = 1;
-    ctx.strokeRect(margin, margin, canvas.width - margin * 2, canvas.height - margin * 2);
+    ctx.strokeRect(margin, margin, canvasWidth - margin * 2, canvasHeight - margin * 2);
     
     // 绘制边角装饰
-    const cornerSize = 10;
+    const cornerSize = Math.max(5, Math.round(10 * marginFactor));
     ctx.beginPath();
     // 左上角
     ctx.moveTo(margin - cornerSize/2, margin);
@@ -416,26 +433,27 @@ function renderMemoToCanvas(text, fontSize) {
     ctx.moveTo(margin, margin - cornerSize/2);
     ctx.lineTo(margin, margin + cornerSize);
     // 右上角
-    ctx.moveTo(canvas.width - margin + cornerSize/2, margin);
-    ctx.lineTo(canvas.width - margin - cornerSize, margin);
-    ctx.moveTo(canvas.width - margin, margin - cornerSize/2);
-    ctx.lineTo(canvas.width - margin, margin + cornerSize);
+    ctx.moveTo(canvasWidth - margin + cornerSize/2, margin);
+    ctx.lineTo(canvasWidth - margin - cornerSize, margin);
+    ctx.moveTo(canvasWidth - margin, margin - cornerSize/2);
+    ctx.lineTo(canvasWidth - margin, margin + cornerSize);
     // 左下角
-    ctx.moveTo(margin - cornerSize/2, canvas.height - margin);
-    ctx.lineTo(margin + cornerSize, canvas.height - margin);
-    ctx.moveTo(margin, canvas.height - margin + cornerSize/2);
-    ctx.lineTo(margin, canvas.height - margin - cornerSize);
+    ctx.moveTo(margin - cornerSize/2, canvasHeight - margin);
+    ctx.lineTo(margin + cornerSize, canvasHeight - margin);
+    ctx.moveTo(margin, canvasHeight - margin + cornerSize/2);
+    ctx.lineTo(margin, canvasHeight - margin - cornerSize);
     // 右下角
-    ctx.moveTo(canvas.width - margin + cornerSize/2, canvas.height - margin);
-    ctx.lineTo(canvas.width - margin - cornerSize, canvas.height - margin);
-    ctx.moveTo(canvas.width - margin, canvas.height - margin + cornerSize/2);
-    ctx.lineTo(canvas.width - margin, canvas.height - margin - cornerSize);
+    ctx.moveTo(canvasWidth - margin + cornerSize/2, canvasHeight - margin);
+    ctx.lineTo(canvasWidth - margin - cornerSize, canvasHeight - margin);
+    ctx.moveTo(canvasWidth - margin, canvasHeight - margin + cornerSize/2);
+    ctx.lineTo(canvasWidth - margin, canvasHeight - margin - cornerSize);
     ctx.stroke();
   } else if (theme === 'highlight') {
     // 左侧强调条
     ctx.fillStyle = 'red';
-    ctx.fillRect(margin, margin, 5, canvas.height - margin * 2);
-    margin += 15; // 增加左边距，为强调条留出空间
+    const sidebarWidth = Math.max(3, Math.round(5 * marginFactor));
+    ctx.fillRect(margin, margin, sidebarWidth, canvasHeight - margin * 2);
+    margin += Math.max(8, Math.round(15 * marginFactor)); // 增加左边距，为强调条留出空间
   }
   
   let y = margin;
@@ -444,7 +462,7 @@ function renderMemoToCanvas(text, fontSize) {
   const title = document.getElementById('memoTitle').value;
   if (title) {
     const titlePosition = document.getElementById('titlePosition').value;
-    const titleFontSize = fontSize * 1.5;
+    const titleFontSize = adjustedFontSize * 1.5;
     
     // 根据主题设置标题样式
     if (theme === 'xiaohongshu') {
@@ -460,10 +478,10 @@ function renderMemoToCanvas(text, fontSize) {
     
     switch (titlePosition) {
       case 'top':
-        titleX = (canvas.width - titleWidth) / 2;
+        titleX = (canvasWidth - titleWidth) / 2;
         break;
       case 'top-right':
-        titleX = canvas.width - margin - titleWidth;
+        titleX = canvasWidth - margin - titleWidth;
         break;
       case 'top-left':
       default:
@@ -490,14 +508,14 @@ function renderMemoToCanvas(text, fontSize) {
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.moveTo(margin, y + titleFontSize + 5);
-      ctx.lineTo(canvas.width - margin, y + titleFontSize + 5);
+      ctx.lineTo(canvasWidth - margin, y + titleFontSize + 5);
       ctx.stroke();
     } else {
       ctx.strokeStyle = 'black';
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(margin, y + titleFontSize + 5);
-      ctx.lineTo(canvas.width - margin, y + titleFontSize + 5);
+      ctx.lineTo(canvasWidth - margin, y + titleFontSize + 5);
       ctx.stroke();
     }
     
@@ -505,7 +523,7 @@ function renderMemoToCanvas(text, fontSize) {
   }
   
   // 恢复正常字体大小和颜色
-  ctx.font = `${fontSize}px ${fontFamily}`;
+  ctx.font = `${adjustedFontSize}px ${fontFamily}`;
   ctx.fillStyle = 'black';
   ctx.strokeStyle = 'black';
   
@@ -513,10 +531,18 @@ function renderMemoToCanvas(text, fontSize) {
   const lines = text.split('\n');
   
   // 为不同格式设置不同字体样式
-  const normalFont = `${fontSize}px ${fontFamily}`;
-  const boldFont = `bold ${fontSize}px ${fontFamily}`;
-  const italicFont = `italic ${fontSize}px ${fontFamily}`;
-  const boldItalicFont = `bold italic ${fontSize}px ${fontFamily}`;
+  const normalFont = `${adjustedFontSize}px ${fontFamily}`;
+  const boldFont = `bold ${adjustedFontSize}px ${fontFamily}`;
+  const italicFont = `italic ${adjustedFontSize}px ${fontFamily}`;
+  const boldItalicFont = `bold italic ${adjustedFontSize}px ${fontFamily}`;
+  
+  // 当剩余空间不足时调整行间距
+  const remainingHeight = canvasHeight - y - margin;
+  const totalLines = lines.length;
+  // 如果内容太多，适当调整行高以尽可能显示更多内容
+  const adjustedLineHeight = remainingHeight / totalLines < lineHeight ? 
+                             Math.max(adjustedFontSize * 1.0, remainingHeight / totalLines * 0.95) : 
+                             lineHeight;
   
   for (let i = 0; i < lines.length; i++) {
     let line = lines[i];
@@ -527,10 +553,10 @@ function renderMemoToCanvas(text, fontSize) {
       ctx.strokeStyle = theme === 'xiaohongshu' ? 'red' : 'black';
       ctx.lineWidth = theme === 'xiaohongshu' ? 2 : 1;
       ctx.beginPath();
-      ctx.moveTo(margin, y + lineHeight/2);
-      ctx.lineTo(canvas.width - margin, y + lineHeight/2);
+      ctx.moveTo(margin, y + adjustedLineHeight/2);
+      ctx.lineTo(canvasWidth - margin, y + adjustedLineHeight/2);
       ctx.stroke();
-      y += lineHeight;
+      y += adjustedLineHeight;
       continue;
     }
     
@@ -541,7 +567,7 @@ function renderMemoToCanvas(text, fontSize) {
       ctx.fillStyle = theme === 'xiaohongshu' ? 'red' : 'black';
       ctx.fillText('•', x, y);
       ctx.fillStyle = 'black';
-      x += fontSize; // 缩进
+      x += adjustedFontSize; // 缩进
       line = line.substring(2);
     } else if (/^\d+\./.test(line)) {
       // 绘制数字列表
@@ -560,15 +586,15 @@ function renderMemoToCanvas(text, fontSize) {
       // 绘制复选框
       ctx.strokeStyle = theme === 'xiaohongshu' ? 'red' : 'black';
       ctx.lineWidth = 1;
-      const boxSize = fontSize * 0.8;
-      ctx.strokeRect(x, y + (lineHeight - boxSize) / 2, boxSize, boxSize);
+      const boxSize = adjustedFontSize * 0.8;
+      ctx.strokeRect(x, y + (adjustedLineHeight - boxSize) / 2, boxSize, boxSize);
       
       if (line.startsWith('[x] ')) {
         // 绘制选中标记
         ctx.beginPath();
-        ctx.moveTo(x + boxSize * 0.2, y + lineHeight / 2);
-        ctx.lineTo(x + boxSize * 0.4, y + lineHeight / 2 + boxSize * 0.2);
-        ctx.lineTo(x + boxSize * 0.8, y + lineHeight / 2 - boxSize * 0.3);
+        ctx.moveTo(x + boxSize * 0.2, y + adjustedLineHeight / 2);
+        ctx.lineTo(x + boxSize * 0.4, y + adjustedLineHeight / 2 + boxSize * 0.2);
+        ctx.lineTo(x + boxSize * 0.8, y + adjustedLineHeight / 2 - boxSize * 0.3);
         ctx.stroke();
       }
       
@@ -578,8 +604,8 @@ function renderMemoToCanvas(text, fontSize) {
       // 红色复选框
       ctx.strokeStyle = 'red';
       ctx.lineWidth = 1;
-      const boxSize = fontSize * 0.8;
-      ctx.strokeRect(x, y + (lineHeight - boxSize) / 2, boxSize, boxSize);
+      const boxSize = adjustedFontSize * 0.8;
+      ctx.strokeRect(x, y + (adjustedLineHeight - boxSize) / 2, boxSize, boxSize);
       
       x += boxSize + 5;
       line = line.substring(4); // 跳过 "[r] "
@@ -705,8 +731,8 @@ function renderMemoToCanvas(text, fontSize) {
             
             // 绘制标签背景（可选，取决于墨水屏支持情况）
             const tagWidth = ctx.measureText(segment.text).width;
-            const tagHeight = fontSize * 0.8;
-            const tagY = y + (lineHeight - tagHeight) / 2;
+            const tagHeight = adjustedFontSize * 0.8;
+            const tagY = y + (adjustedLineHeight - tagHeight) / 2;
             
             // 轻微标记标签边框
             ctx.strokeStyle = 'red';
@@ -726,8 +752,8 @@ function renderMemoToCanvas(text, fontSize) {
       const textWidth = ctx.measureText(segment.text).width;
       
       // 如果这一段文本会超出右边界，就换行
-      if (x + textWidth > canvas.width - margin) {
-        y += lineHeight;
+      if (x + textWidth > canvasWidth - margin) {
+        y += adjustedLineHeight;
         x = margin;
       }
       
@@ -737,7 +763,7 @@ function renderMemoToCanvas(text, fontSize) {
       // 绘制下划线
       if (segment.format === 'underline') {
         const metrics = ctx.measureText(segment.text);
-        const underlineY = y + fontSize - fontSize / 8;
+        const underlineY = y + adjustedFontSize - adjustedFontSize / 8;
         ctx.beginPath();
         ctx.moveTo(x, underlineY);
         ctx.lineTo(x + metrics.width, underlineY);
@@ -763,16 +789,20 @@ function renderMemoToCanvas(text, fontSize) {
     }
     
     // 下一行
-    y += lineHeight;
+    y += adjustedLineHeight;
     
-    // 如果已经到达画布底部，停止渲染
-    if (y > canvas.height - margin && i < lines.length - 1) {
+    // 如果已经到达画布底部，停止渲染并显示警告
+    if (y > canvasHeight - margin && i < lines.length - 1) {
       addLog("警告：文本太长，部分内容可能无法显示");
+      // 在底部添加省略号指示有更多内容
+      ctx.fillStyle = 'red';
+      ctx.textAlign = 'center';
+      ctx.fillText('••• 内容过多，部分省略 •••', canvasWidth / 2, canvasHeight - margin / 2);
+      ctx.textAlign = 'start';
+      ctx.fillStyle = 'black';
       return;
     }
   }
-  
-  addLog("备忘录已渲染到画布！");
 }
 
 // 加载保存的备忘录内容
@@ -1039,6 +1069,14 @@ function updateCanvasSize() {
   canvas.height = selectedSize.height;
 
   updateImage(false);
+  
+  // 如果有备忘录内容，则重新渲染
+  const memoText = document.getElementById('memoText').value;
+  if (memoText) {
+    const fontSize = parseInt(document.getElementById('memoFontSize').value);
+    renderMemoToCanvas(memoText, fontSize);
+    addLog("画布尺寸已更新，备忘录已重新渲染");
+  }
 }
 
 function updateDitcherOptions() {
