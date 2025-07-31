@@ -3,13 +3,13 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>电子墨水屏蓝牙控制器</title>
-	<link rel="stylesheet" href="css/main.css?v=20250607">
+    <title>墨水屏日历</title>
+	<link rel="stylesheet" href="css/main.css?v=20250731">
 </head>
 
 <body>
     <div class="main">
-        <h3>电子墨水屏蓝牙控制器</h3>
+        <h3>墨水屏日历</h3>
         <fieldset>
             <legend>蓝牙连接</legend>
             <div class="flex-container">
@@ -18,7 +18,7 @@
                     <button id="reconnectbutton" type="button" class="secondary" onclick="reConnect()">重连</button>
 					<button type="button" class="secondary" onclick="clearLog()">清空日志</button>
                 </div>
-				<div class="flex-group debug">
+				<div class="flex-group right debug">
 					<label for="epddriver">驱动</label>
 					<select id="epddriver">
 						<option value="01" data-color="blackWhiteColor" data-size="4.2_400_300">UC8176/UC8276(黑白)</option>
@@ -33,21 +33,25 @@
 					<input id="epdpins" type="text" value="">
 					<button id="setDriverbutton" type="button" class="primary" onclick="setDriver()">确认</button>
 				</div>
-                <div class="flex-group">
+            </div>
+			<div id="log"></div>
+        </fieldset>
+		<fieldset>
+            <legend>设备控制</legend>
+            <div class="flex-container">
+				<div class="flex-group">
                     <button id="calendarmodebutton" type="button" class="primary" onclick="syncTime(1)">日历模式</button>
                     <button id="clockmodebutton" type="button" class="primary" onclick="syncTime(2)">时钟模式</button>
 					<button id="clearscreenbutton" type="button" class="secondary" onclick="clearScreen()">清除屏幕</button>
                 </div>
-                <div class="flex-group debug">
+                <div class="flex-group right debug">
                     <input type="text" id="cmdTXT" value="">
                     <button id="sendcmdbutton" type="button" class="primary" onclick="sendcmd()">发送命令</button>
                 </div>
-            </div>
-			<div id="log"></div>
-        </fieldset>
-
+			</div>
+		</fieldset>
 		<fieldset>
-        	<legend>蓝牙传图</legend>
+        	<legend>图片处理</legend>
 			<div class="flex-container">
 				<input type="file" id="imageFile" accept=".png,.jpg,.bmp,.webp,.jpeg">
 			</div>
@@ -199,9 +203,9 @@
 			</span>
 		</div>
     </div>
-    <script type="text/javascript" src="js/dithering.js?v=20250607"></script>
-    <script type="text/javascript" src="js/paint.js?v=20250607"></script>
-    <script type="text/javascript" src="js/main.js?v=20250607"></script>
+    <script type="text/javascript" src="js/dithering.js?v=20250731"></script>
+    <script type="text/javascript" src="js/paint.js?v=20250731"></script>
+    <script type="text/javascript" src="js/main.js?v=20250731"></script>
 </body>
 
 </html>

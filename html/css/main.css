@@ -202,6 +202,10 @@ code {
     align-items: center;
 }
 
+.flex-group.right {
+    margin-left: auto;
+}
+
 #status {
     margin: 10px 0;
 }
@@ -434,6 +438,10 @@ body.debug-mode select:disabled {
     }
     .flex-container.options .flex-group label {
         min-width: 80px;
+    }
+
+    .flex-group.right {
+        margin-left: 0;
     }
 
     .canvas-tools.flex-container {
