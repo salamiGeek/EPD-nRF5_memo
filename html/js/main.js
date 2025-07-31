@@ -204,6 +204,9 @@ function applyMemoFormat(format) {
     case 'underline':
       replacement = `_${selectedText}_`;
       break;
+    case 'red':
+      replacement = `{${selectedText}}`;
+      break;
     case 'bullet':
       // 如果有多行选择，为每行添加项目符号
       if (selectedText.includes('\n')) {
@@ -228,10 +231,21 @@ function applyMemoFormat(format) {
         replacement = `[ ] ${selectedText}`;
       }
       break;
+    case 'redcheckbox':
+      // 红色复选框
+      if (selectedText.includes('\n')) {
+        replacement = selectedText.split('\n').map(line => `[r] ${line}`).join('\n');
+      } else {
+        replacement = `[r] ${selectedText}`;
+      }
+      break;
     case 'today':
       const today = new Date();
       const formattedDate = today.toLocaleDateString();
       replacement = formattedDate;
+      break;
+    case 'line':
+      replacement = "\n---\n";
       break;
   }
   
@@ -255,23 +269,44 @@ function applyMemoFormat(format) {
 // 预览备忘录内容
 function previewMemo() {
   const memoText = document.getElementById('memoText').value;
+  const memoTitle = document.getElementById('memoTitle').value;
   const previewDiv = document.getElementById('memo-preview');
   const previewContent = document.getElementById('memo-preview-content');
+  const theme = document.getElementById('memoTheme').value;
   
-  if (!memoText) {
-    alert('请先输入备忘录内容');
+  if (!memoText && !memoTitle) {
+    alert('请先输入备忘录内容或标题');
     return;
   }
   
+  // 处理小红书标签 (#标签)
+  let processedText = memoText;
+  if (theme === 'xiaohongshu') {
+    processedText = processedText.replace(/#(\S+)/g, '<span class="xiaohongshu-tag">#$1</span>');
+  }
+  
   // 处理简单的Markdown标记
-  let htmlContent = memoText
+  let htmlContent = processedText
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') // 粗体
     .replace(/\*(.*?)\*/g, '<em>$1</em>') // 斜体
     .replace(/_(.*?)_/g, '<u>$1</u>') // 下划线
-    .replace(/\[ \] (.*?)(?:\n|$)/g, '<div><input type="checkbox" disabled> $1</div>') // 未选中复选框
-    .replace(/\[x\] (.*?)(?:\n|$)/g, '<div><input type="checkbox" checked disabled> $1</div>') // 已选中复选框
-    .replace(/^• (.*?)(?:\n|$)/gm, '<li>$1</li>') // 项目符号
-    .replace(/^(\d+)\. (.*?)(?:\n|$)/gm, '<li>$1. $2</li>') // 编号列表
+    .replace(/\{(.*?)\}/g, '<span style="color: red;">$1</span>') // 红色文字
+    .replace(/\[ \] (.*?)(?:\n|$)/g, theme === 'xiaohongshu' ? 
+      '<div><input type="checkbox" class="xiaohongshu-checkbox" disabled> <span>$1</span></div>' : 
+      '<div><input type="checkbox" disabled> $1</div>') // 未选中复选框
+    .replace(/\[x\] (.*?)(?:\n|$)/g, theme === 'xiaohongshu' ? 
+      '<div><input type="checkbox" class="xiaohongshu-checkbox" checked disabled> <span>$1</span></div>' : 
+      '<div><input type="checkbox" checked disabled> $1</div>') // 已选中复选框
+    .replace(/\[r\] (.*?)(?:\n|$)/g, '<div><input type="checkbox" disabled style="accent-color: red;"> <span style="color: red;">$1</span></div>') // 红色复选框
+    .replace(/^• (.*?)(?:\n|$)/gm, theme === 'xiaohongshu' ? 
+      '<li><span class="xiaohongshu-bullet">•</span> $1</li>' : 
+      '<li>$1</li>') // 项目符号
+    .replace(/^(\d+)\. (.*?)(?:\n|$)/gm, theme === 'xiaohongshu' ? 
+      '<li><span style="color: red;">$1.</span> $2</li>' : 
+      '<li>$1. $2</li>') // 编号列表
+    .replace(/---/g, theme === 'xiaohongshu' ? 
+      '<hr class="xiaohongshu-hr">' : 
+      '<hr>') // 分隔线
     .replace(/\n/g, '<br>'); // 换行符
   
   // 添加适当的列表标签
@@ -284,7 +319,42 @@ function previewMemo() {
     return match;
   });
   
-  previewContent.innerHTML = htmlContent;
+  // 根据主题添加样式
+  let themeClass = '';
+  let titleClass = '';
+  
+  switch (theme) {
+    case 'xiaohongshu':
+      themeClass = 'xiaohongshu-theme';
+      titleClass = 'xiaohongshu-title';
+      break;
+    case 'elegant':
+      themeClass = 'elegant-theme';
+      titleClass = 'elegant-title';
+      break;
+    case 'highlight':
+      themeClass = 'highlight-theme';
+      titleClass = 'highlight-title';
+      break;
+  }
+  
+  // 构建预览内容
+  let finalHtml = `<div class="${themeClass}">`;
+  
+  if (memoTitle) {
+    finalHtml += `<h3 class="${titleClass}">${memoTitle}</h3>`;
+  }
+  
+  finalHtml += htmlContent;
+  
+  // 如果是小红书风格，添加底部签名
+  if (theme === 'xiaohongshu') {
+    finalHtml += `<div style="text-align: center; margin-top: 15px; color: #ff2442; font-size: 0.9em;">✨ 记录生活 ✨</div>`;
+  }
+  
+  finalHtml += `</div>`;
+  
+  previewContent.innerHTML = finalHtml;
   previewDiv.style.display = 'block';
 }
 
@@ -308,6 +378,66 @@ function renderMemoToCanvas(text, fontSize) {
   const lineHeight = fontSize * 1.2;
   const margin = 20;
   
+  // 获取主题
+  const theme = document.getElementById('memoTheme').value;
+  
+  // 如果是小红书风格，添加背景边框
+  if (theme === 'xiaohongshu') {
+    // 绘制边框
+    ctx.strokeStyle = 'red';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(margin/2, margin/2, canvas.width - margin, canvas.height - margin);
+    
+    // 在底部添加小红书标志
+    ctx.font = `${fontSize * 0.8}px ${fontFamily}`;
+    ctx.fillStyle = 'red';
+    ctx.textAlign = 'center';
+    ctx.fillText('✨ 记录生活 ✨', canvas.width / 2, canvas.height - margin - fontSize);
+    ctx.textAlign = 'start';
+    
+    // 在四角添加装饰点
+    const cornerSize = 8;
+    ctx.fillRect(margin/2 - cornerSize/2, margin/2 - cornerSize/2, cornerSize, cornerSize);
+    ctx.fillRect(canvas.width - margin/2 - cornerSize/2, margin/2 - cornerSize/2, cornerSize, cornerSize);
+    ctx.fillRect(margin/2 - cornerSize/2, canvas.height - margin/2 - cornerSize/2, cornerSize, cornerSize);
+    ctx.fillRect(canvas.width - margin/2 - cornerSize/2, canvas.height - margin/2 - cornerSize/2, cornerSize, cornerSize);
+  } else if (theme === 'elegant') {
+    // 绘制精致边框
+    ctx.strokeStyle = 'black';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(margin, margin, canvas.width - margin * 2, canvas.height - margin * 2);
+    
+    // 绘制边角装饰
+    const cornerSize = 10;
+    ctx.beginPath();
+    // 左上角
+    ctx.moveTo(margin - cornerSize/2, margin);
+    ctx.lineTo(margin + cornerSize, margin);
+    ctx.moveTo(margin, margin - cornerSize/2);
+    ctx.lineTo(margin, margin + cornerSize);
+    // 右上角
+    ctx.moveTo(canvas.width - margin + cornerSize/2, margin);
+    ctx.lineTo(canvas.width - margin - cornerSize, margin);
+    ctx.moveTo(canvas.width - margin, margin - cornerSize/2);
+    ctx.lineTo(canvas.width - margin, margin + cornerSize);
+    // 左下角
+    ctx.moveTo(margin - cornerSize/2, canvas.height - margin);
+    ctx.lineTo(margin + cornerSize, canvas.height - margin);
+    ctx.moveTo(margin, canvas.height - margin + cornerSize/2);
+    ctx.lineTo(margin, canvas.height - margin - cornerSize);
+    // 右下角
+    ctx.moveTo(canvas.width - margin + cornerSize/2, canvas.height - margin);
+    ctx.lineTo(canvas.width - margin - cornerSize, canvas.height - margin);
+    ctx.moveTo(canvas.width - margin, canvas.height - margin + cornerSize/2);
+    ctx.lineTo(canvas.width - margin, canvas.height - margin - cornerSize);
+    ctx.stroke();
+  } else if (theme === 'highlight') {
+    // 左侧强调条
+    ctx.fillStyle = 'red';
+    ctx.fillRect(margin, margin, 5, canvas.height - margin * 2);
+    margin += 15; // 增加左边距，为强调条留出空间
+  }
+  
   let y = margin;
   
   // 处理标题
@@ -315,7 +445,15 @@ function renderMemoToCanvas(text, fontSize) {
   if (title) {
     const titlePosition = document.getElementById('titlePosition').value;
     const titleFontSize = fontSize * 1.5;
-    ctx.font = `bold ${titleFontSize}px ${fontFamily}`;
+    
+    // 根据主题设置标题样式
+    if (theme === 'xiaohongshu') {
+      ctx.font = `bold ${titleFontSize}px ${fontFamily}`;
+      ctx.fillStyle = 'red';
+    } else {
+      ctx.font = `bold ${titleFontSize}px ${fontFamily}`;
+      ctx.fillStyle = 'black';
+    }
     
     const titleWidth = ctx.measureText(title).width;
     let titleX = margin;
@@ -332,19 +470,44 @@ function renderMemoToCanvas(text, fontSize) {
         titleX = margin;
     }
     
+    // 小红书风格标题可以添加装饰性星星
+    if (theme === 'xiaohongshu') {
+      // 在标题两侧添加星星
+      const star = '✨';
+      const starWidth = ctx.measureText(star).width;
+      
+      if (titlePosition === 'top') {
+        ctx.fillText(star, titleX - starWidth - 10, y);
+        ctx.fillText(star, titleX + titleWidth + 10, y);
+      }
+    }
+    
     ctx.fillText(title, titleX, y);
     
     // 在标题下方画一条线
-    ctx.beginPath();
-    ctx.moveTo(margin, y + titleFontSize + 5);
-    ctx.lineTo(canvas.width - margin, y + titleFontSize + 5);
-    ctx.stroke();
+    if (theme === 'xiaohongshu') {
+      ctx.strokeStyle = 'red';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(margin, y + titleFontSize + 5);
+      ctx.lineTo(canvas.width - margin, y + titleFontSize + 5);
+      ctx.stroke();
+    } else {
+      ctx.strokeStyle = 'black';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(margin, y + titleFontSize + 5);
+      ctx.lineTo(canvas.width - margin, y + titleFontSize + 5);
+      ctx.stroke();
+    }
     
     y += titleFontSize + 15; // 标题后多加一些间距
   }
   
-  // 恢复正常字体大小
+  // 恢复正常字体大小和颜色
   ctx.font = `${fontSize}px ${fontFamily}`;
+  ctx.fillStyle = 'black';
+  ctx.strokeStyle = 'black';
   
   // 处理简单的Markdown格式
   const lines = text.split('\n');
@@ -359,11 +522,25 @@ function renderMemoToCanvas(text, fontSize) {
     let line = lines[i];
     let x = margin;
     
+    // 检查是否是分隔线
+    if (line.trim() === '---') {
+      ctx.strokeStyle = theme === 'xiaohongshu' ? 'red' : 'black';
+      ctx.lineWidth = theme === 'xiaohongshu' ? 2 : 1;
+      ctx.beginPath();
+      ctx.moveTo(margin, y + lineHeight/2);
+      ctx.lineTo(canvas.width - margin, y + lineHeight/2);
+      ctx.stroke();
+      y += lineHeight;
+      continue;
+    }
+    
     // 检查特殊格式
     if (line.startsWith('• ')) {
       // 绘制项目符号
       ctx.font = normalFont;
+      ctx.fillStyle = theme === 'xiaohongshu' ? 'red' : 'black';
       ctx.fillText('•', x, y);
+      ctx.fillStyle = 'black';
       x += fontSize; // 缩进
       line = line.substring(2);
     } else if (/^\d+\./.test(line)) {
@@ -371,13 +548,17 @@ function renderMemoToCanvas(text, fontSize) {
       const match = line.match(/^(\d+)\./);
       if (match) {
         ctx.font = normalFont;
+        if (theme === 'xiaohongshu') {
+          ctx.fillStyle = 'red';
+        }
         ctx.fillText(match[0], x, y);
+        ctx.fillStyle = 'black';
         x += ctx.measureText(match[0]).width + 5;
         line = line.substring(match[0].length + 1);
       }
     } else if (line.startsWith('[ ] ') || line.startsWith('[x] ')) {
       // 绘制复选框
-      ctx.strokeStyle = 'black';
+      ctx.strokeStyle = theme === 'xiaohongshu' ? 'red' : 'black';
       ctx.lineWidth = 1;
       const boxSize = fontSize * 0.8;
       ctx.strokeRect(x, y + (lineHeight - boxSize) / 2, boxSize, boxSize);
@@ -393,52 +574,103 @@ function renderMemoToCanvas(text, fontSize) {
       
       x += boxSize + 5;
       line = line.substring(4); // 跳过 "[ ] " 或 "[x] "
+    } else if (line.startsWith('[r] ')) {
+      // 红色复选框
+      ctx.strokeStyle = 'red';
+      ctx.lineWidth = 1;
+      const boxSize = fontSize * 0.8;
+      ctx.strokeRect(x, y + (lineHeight - boxSize) / 2, boxSize, boxSize);
+      
+      x += boxSize + 5;
+      line = line.substring(4); // 跳过 "[r] "
+      
+      // 使用红色文字
+      ctx.fillStyle = 'red';
     }
     
-    // 处理行内格式
+    // 处理标签 (#标签)
+    const tagRegex = /#(\S+)/g;
+    let tagMatch;
+    let lastIndex = 0;
     let segments = [];
-    let currentIndex = 0;
     
-    // 查找粗体、斜体等标记
-    const regex = /(\*\*.*?\*\*)|(\*.*?\*)|(_.*?_)/g;
-    let match;
-    
-    while ((match = regex.exec(line)) !== null) {
-      // 添加前面的普通文本
-      if (match.index > currentIndex) {
+    while ((tagMatch = tagRegex.exec(line)) !== null) {
+      // 添加标签前的文本
+      if (tagMatch.index > lastIndex) {
         segments.push({
-          text: line.substring(currentIndex, match.index),
+          text: line.substring(lastIndex, tagMatch.index),
           format: 'normal'
         });
       }
       
-      // 添加格式化文本
-      if (match[1]) { // 粗体 **text**
-        segments.push({
-          text: match[1].substring(2, match[1].length - 2),
-          format: 'bold'
-        });
-      } else if (match[2]) { // 斜体 *text*
-        segments.push({
-          text: match[2].substring(1, match[2].length - 1),
-          format: 'italic'
-        });
-      } else if (match[3]) { // 下划线 _text_
-        segments.push({
-          text: match[3].substring(1, match[3].length - 1),
-          format: 'underline'
-        });
-      }
+      // 添加标签
+      segments.push({
+        text: tagMatch[0], // 整个标签，包括#
+        format: 'tag'
+      });
       
-      currentIndex = match.index + match[0].length;
+      lastIndex = tagMatch.index + tagMatch[0].length;
     }
     
-    // 添加剩余的文本
-    if (currentIndex < line.length) {
+    // 添加剩余文本
+    if (lastIndex < line.length) {
       segments.push({
-        text: line.substring(currentIndex),
+        text: line.substring(lastIndex),
         format: 'normal'
       });
+    }
+    
+    // 如果没有找到标签，则处理其他格式
+    if (segments.length === 0) {
+      // 处理行内格式
+      let currentIndex = 0;
+      
+      // 查找粗体、斜体、下划线、红色文字等标记
+      const regex = /(\*\*(.*?)\*\*)|(\*(.*?)\*)|(_(.+?)_)|(\{(.+?)\})/g;
+      let match;
+      
+      while ((match = regex.exec(line)) !== null) {
+        // 添加前面的普通文本
+        if (match.index > currentIndex) {
+          segments.push({
+            text: line.substring(currentIndex, match.index),
+            format: 'normal'
+          });
+        }
+        
+        // 添加格式化文本
+        if (match[1]) { // 粗体 **text**
+          segments.push({
+            text: match[2],
+            format: 'bold'
+          });
+        } else if (match[3]) { // 斜体 *text*
+          segments.push({
+            text: match[4],
+            format: 'italic'
+          });
+        } else if (match[5]) { // 下划线 _text_
+          segments.push({
+            text: match[6],
+            format: 'underline'
+          });
+        } else if (match[7]) { // 红色文字 {text}
+          segments.push({
+            text: match[8],
+            format: 'red'
+          });
+        }
+        
+        currentIndex = match.index + match[0].length;
+      }
+      
+      // 添加剩余的文本
+      if (currentIndex < line.length) {
+        segments.push({
+          text: line.substring(currentIndex),
+          format: 'normal'
+        });
+      }
     }
     
     // 如果没有匹配到任何格式，就添加整行作为普通文本
@@ -460,6 +692,31 @@ function renderMemoToCanvas(text, fontSize) {
           break;
         case 'underline':
           ctx.font = normalFont;
+          break;
+        case 'red':
+          ctx.font = normalFont;
+          ctx.fillStyle = 'red';
+          break;
+        case 'tag':
+          // 小红书风格标签
+          if (theme === 'xiaohongshu') {
+            ctx.font = normalFont;
+            ctx.fillStyle = 'red';
+            
+            // 绘制标签背景（可选，取决于墨水屏支持情况）
+            const tagWidth = ctx.measureText(segment.text).width;
+            const tagHeight = fontSize * 0.8;
+            const tagY = y + (lineHeight - tagHeight) / 2;
+            
+            // 轻微标记标签边框
+            ctx.strokeStyle = 'red';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(x, tagY, tagWidth + 6, tagHeight);
+            ctx.fillStyle = 'red';
+            x += 3; // 为标签内容添加左边距
+          } else {
+            ctx.font = normalFont;
+          }
           break;
         default:
           ctx.font = normalFont;
@@ -487,7 +744,22 @@ function renderMemoToCanvas(text, fontSize) {
         ctx.stroke();
       }
       
-      x += ctx.measureText(segment.text).width;
+      // 如果是标签，添加额外的右边距
+      if (segment.format === 'tag' && theme === 'xiaohongshu') {
+        x += textWidth + 6; // 加上右边距
+      } else {
+        x += textWidth;
+      }
+      
+      // 如果是红色文字，恢复黑色
+      if (segment.format === 'red') {
+        ctx.fillStyle = 'black';
+      }
+    }
+    
+    // 如果行以[r]开头，恢复黑色
+    if (lines[i].startsWith('[r] ')) {
+      ctx.fillStyle = 'black';
     }
     
     // 下一行
@@ -870,6 +1142,7 @@ function applyTemplate() {
   const template = document.getElementById('memoTemplate').value;
   const memoText = document.getElementById('memoText');
   const memoTitle = document.getElementById('memoTitle');
+  const memoTheme = document.getElementById('memoTheme');
   
   if (!template) return;
   
@@ -879,6 +1152,8 @@ function applyTemplate() {
   }
   
   const today = new Date().toLocaleDateString();
+  const weekdays = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+  const weekday = weekdays[new Date().getDay()];
   
   switch (template) {
     case 'todo':
@@ -893,11 +1168,29 @@ function applyTemplate() {
       memoTitle.value = "购物清单";
       memoText.value = "[ ] 1. \n[ ] 2. \n[ ] 3. \n[ ] 4. \n[ ] 5. \n\n备注：";
       break;
+    case 'xiaohongshu':
+      memoTheme.value = "xiaohongshu";
+      memoTitle.value = "✨ 今日记录 ✨";
+      memoText.value = 
+        "---\n\n" +
+        "{📅 " + today + " " + weekday + "}\n\n" +
+        "• 今日心情\n\n" +
+        "[r] 记录美好生活瞬间\n\n" +
+        "• 今日计划\n\n" +
+        "[ ] 早起晨练\n" +
+        "[ ] 阅读30分钟\n" +
+        "[ ] 准时吃饭\n\n" +
+        "• 今日感悟\n\n" +
+        "{心情不好的时候喝杯奶茶会好很多～}\n\n" +
+        "---\n\n" +
+        "**关键词**：#生活记录 #每日计划 #心情日记";
+      break;
   }
   
   // 重置选择
   document.getElementById('memoTemplate').value = '';
   updateCharCount();
+  previewMemo();
 }
 
 // 清空备忘录内容
